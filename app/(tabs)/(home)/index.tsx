@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors, darkColors, commonStyles } from '@/styles/commonStyles';
-import { getProgressData, saveProgressData, resetProgressData, calculateDaysSinceStart, addNote, ProgressData } from '@/utils/storage';
+import { getProgressData, saveProgressData, resetProgressData, calculateDaysSinceStart, addNote, calculateTimeUntilQuit, ProgressData } from '@/utils/storage';
 import { IconSymbol } from '@/components/IconSymbol';
 
 export default function HomeScreen() {
@@ -25,10 +25,31 @@ export default function HomeScreen() {
   const [noteText, setNoteText] = useState('');
   const [selectedMood, setSelectedMood] = useState<'good' | 'neutral' | 'difficult' | undefined>(undefined);
   const [isLoading, setIsLoading] = useState(true);
+  const [countdown, setCountdown] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0, isExpired: false });
 
   useEffect(() => {
     loadProgressData();
   }, []);
+
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    
+    if (progressData?.quitDate) {
+      const updateCountdown = () => {
+        const timeLeft = calculateTimeUntilQuit(progressData.quitDate!);
+        setCountdown(timeLeft);
+      };
+      
+      updateCountdown(); // Initial update
+      interval = setInterval(updateCountdown, 1000); // Update every second
+    }
+    
+    return () => {
+      if (interval) {
+        clearInterval(interval);
+      }
+    };
+  }, [progressData?.quitDate]);
 
   const loadProgressData = async () => {
     try {
@@ -160,6 +181,66 @@ export default function HomeScreen() {
             </View>
           )}
         </View>
+
+        {/* Countdown Timer Card */}
+        {progressData?.quitDate && (
+          <View style={[commonStyles.card, { backgroundColor: currentColors.card }]}>
+            <Text style={[commonStyles.title, { color: currentColors.text }]}>
+              {countdown.isExpired ? 'Время отказа наступило!' : 'До отказа от снюса'}
+            </Text>
+            
+            {!countdown.isExpired ? (
+              <View style={styles.countdownContainer}>
+                <View style={styles.countdownGrid}>
+                  <View style={styles.countdownItem}>
+                    <Text style={[styles.countdownNumber, { color: currentColors.primary }]}>
+                      {countdown.days}
+                    </Text>
+                    <Text style={[styles.countdownLabel, { color: currentColors.textSecondary }]}>
+                      дней
+                    </Text>
+                  </View>
+                  <View style={styles.countdownItem}>
+                    <Text style={[styles.countdownNumber, { color: currentColors.primary }]}>
+                      {countdown.hours}
+                    </Text>
+                    <Text style={[styles.countdownLabel, { color: currentColors.textSecondary }]}>
+                      часов
+                    </Text>
+                  </View>
+                  <View style={styles.countdownItem}>
+                    <Text style={[styles.countdownNumber, { color: currentColors.primary }]}>
+                      {countdown.minutes}
+                    </Text>
+                    <Text style={[styles.countdownLabel, { color: currentColors.textSecondary }]}>
+                      минут
+                    </Text>
+                  </View>
+                  <View style={styles.countdownItem}>
+                    <Text style={[styles.countdownNumber, { color: currentColors.primary }]}>
+                      {countdown.seconds}
+                    </Text>
+                    <Text style={[styles.countdownLabel, { color: currentColors.textSecondary }]}>
+                      секунд
+                    </Text>
+                  </View>
+                </View>
+                <Text style={[commonStyles.textSecondary, { color: currentColors.textSecondary, textAlign: 'center', marginTop: 16 }]}>
+                  Запланированное время отказа: {new Date(progressData.quitDate).toLocaleString('ru-RU')}
+                </Text>
+              </View>
+            ) : (
+              <View style={styles.expiredContainer}>
+                <Text style={[styles.expiredText, { color: currentColors.success }]}>
+                  🎉 Время пришло!
+                </Text>
+                <Text style={[commonStyles.textSecondary, { color: currentColors.textSecondary, textAlign: 'center' }]}>
+                  Начните свой путь к жизни без снюса прямо сейчас!
+                </Text>
+              </View>
+            )}
+          </View>
+        )}
 
         {/* Add Note Card */}
         <View style={[commonStyles.card, { backgroundColor: currentColors.card }]}>
@@ -309,5 +390,34 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 4,
     gap: 8,
+  },
+  countdownContainer: {
+    marginVertical: 20,
+  },
+  countdownGrid: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+  },
+  countdownItem: {
+    alignItems: 'center',
+    minWidth: 60,
+  },
+  countdownNumber: {
+    fontSize: 32,
+    fontWeight: 'bold',
+  },
+  countdownLabel: {
+    fontSize: 12,
+    marginTop: 4,
+  },
+  expiredContainer: {
+    alignItems: 'center',
+    marginVertical: 20,
+  },
+  expiredText: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 8,
   },
 });

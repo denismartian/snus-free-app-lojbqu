@@ -9,12 +9,14 @@ import {
   Alert,
   useColorScheme,
   Switch,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors, darkColors, commonStyles } from '@/styles/commonStyles';
-import { resetProgressData } from '@/utils/storage';
+import { resetProgressData, getProgressData, setQuitDate } from '@/utils/storage';
 import { IconSymbol } from '@/components/IconSymbol';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import DateTimePicker from '@react-native-community/datetimepicker';
 
 const THEME_KEY = 'app_theme';
 
@@ -22,6 +24,10 @@ export default function SettingsScreen() {
   const systemColorScheme = useColorScheme();
   const [userTheme, setUserTheme] = useState<'light' | 'dark' | 'system'>('system');
   const [isLoading, setIsLoading] = useState(false);
+  const [quitDate, setQuitDateState] = useState<Date>(new Date());
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showTimePicker, setShowTimePicker] = useState(false);
+  const [currentQuitDate, setCurrentQuitDate] = useState<string | null>(null);
 
   // Determine current theme
   const isDark = userTheme === 'dark' || (userTheme === 'system' && systemColorScheme === 'dark');
@@ -29,7 +35,20 @@ export default function SettingsScreen() {
 
   React.useEffect(() => {
     loadThemePreference();
+    loadQuitDate();
   }, []);
+
+  const loadQuitDate = async () => {
+    try {
+      const data = await getProgressData();
+      if (data?.quitDate) {
+        setCurrentQuitDate(data.quitDate);
+        setQuitDateState(new Date(data.quitDate));
+      }
+    } catch (error) {
+      console.log('Error loading quit date:', error);
+    }
+  };
 
   const loadThemePreference = async () => {
     try {
@@ -105,6 +124,76 @@ export default function SettingsScreen() {
     );
   };
 
+  const handleDateChange = (event: any, selectedDate?: Date) => {
+    setShowDatePicker(Platform.OS === 'ios');
+    if (selectedDate) {
+      const newDate = new Date(quitDate);
+      newDate.setFullYear(selectedDate.getFullYear());
+      newDate.setMonth(selectedDate.getMonth());
+      newDate.setDate(selectedDate.getDate());
+      setQuitDateState(newDate);
+      
+      if (Platform.OS === 'android') {
+        setShowTimePicker(true);
+      }
+    }
+  };
+
+  const handleTimeChange = (event: any, selectedTime?: Date) => {
+    setShowTimePicker(Platform.OS === 'ios');
+    if (selectedTime) {
+      const newDate = new Date(quitDate);
+      newDate.setHours(selectedTime.getHours());
+      newDate.setMinutes(selectedTime.getMinutes());
+      setQuitDateState(newDate);
+    }
+  };
+
+  const saveQuitDate = async () => {
+    try {
+      await setQuitDate(quitDate.toISOString());
+      setCurrentQuitDate(quitDate.toISOString());
+      Alert.alert('Успех', 'Дата и время отказа сохранены!');
+    } catch (error) {
+      console.log('Error saving quit date:', error);
+      Alert.alert('Ошибка', 'Не удалось сохранить дату отказа');
+    }
+  };
+
+  const clearQuitDate = async () => {
+    Alert.alert(
+      'Удалить дату отказа',
+      'Вы уверены, что хотите удалить запланированную дату отказа?',
+      [
+        { text: 'Отмена', style: 'cancel' },
+        {
+          text: 'Удалить',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const data = await getProgressData();
+              if (data) {
+                const updatedData = { ...data };
+                delete updatedData.quitDate;
+                await resetProgressData();
+                // Re-save data without quit date
+                if (data.startDate || data.notes.length > 0) {
+                  const { saveProgressData } = await import('@/utils/storage');
+                  await saveProgressData(updatedData);
+                }
+              }
+              setCurrentQuitDate(null);
+              Alert.alert('Успех', 'Дата отказа удалена');
+            } catch (error) {
+              console.log('Error clearing quit date:', error);
+              Alert.alert('Ошибка', 'Не удалось удалить дату отказа');
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const SettingItem = ({ 
     title, 
     description, 
@@ -167,6 +256,57 @@ export default function SettingsScreen() {
               </Text>
             </View>
           </View>
+        </View>
+
+        {/* Quit Date Settings */}
+        <View style={[commonStyles.card, { backgroundColor: currentColors.card }]}>
+          <Text style={[commonStyles.subtitle, { color: currentColors.text }]}>
+            Планирование отказа
+          </Text>
+          
+          {currentQuitDate ? (
+            <View style={styles.quitDateInfo}>
+              <Text style={[commonStyles.text, { color: currentColors.text }]}>
+                Запланированная дата отказа:
+              </Text>
+              <Text style={[styles.quitDateText, { color: currentColors.primary }]}>
+                {new Date(currentQuitDate).toLocaleString('ru-RU')}
+              </Text>
+              <View style={styles.quitDateButtons}>
+                <TouchableOpacity
+                  style={[styles.quitDateButton, { backgroundColor: currentColors.primary }]}
+                  onPress={() => setShowDatePicker(true)}
+                >
+                  <Text style={[styles.quitDateButtonText, { color: currentColors.card }]}>
+                    Изменить
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.quitDateButton, { backgroundColor: currentColors.error }]}
+                  onPress={clearQuitDate}
+                >
+                  <Text style={[styles.quitDateButtonText, { color: currentColors.card }]}>
+                    Удалить
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          ) : (
+            <View style={styles.noQuitDate}>
+              <Text style={[commonStyles.textSecondary, { color: currentColors.textSecondary }]}>
+                Установите дату и время, когда планируете отказаться от снюса
+              </Text>
+              <TouchableOpacity
+                style={[styles.setQuitDateButton, { backgroundColor: currentColors.primary }]}
+                onPress={() => setShowDatePicker(true)}
+              >
+                <IconSymbol name="calendar" size={20} color={currentColors.card} />
+                <Text style={[styles.setQuitDateButtonText, { color: currentColors.card }]}>
+                  Установить дату отказа
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
 
         {/* Theme Settings */}
@@ -285,6 +425,84 @@ export default function SettingsScreen() {
           </View>
         </View>
       </ScrollView>
+
+      {/* Date Picker */}
+      {showDatePicker && (
+        <DateTimePicker
+          value={quitDate}
+          mode="date"
+          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+          onChange={handleDateChange}
+          minimumDate={new Date()}
+        />
+      )}
+
+      {/* Time Picker */}
+      {showTimePicker && (
+        <DateTimePicker
+          value={quitDate}
+          mode="time"
+          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+          onChange={handleTimeChange}
+        />
+      )}
+
+      {/* iOS Date/Time Picker Confirmation */}
+      {Platform.OS === 'ios' && (showDatePicker || showTimePicker) && (
+        <View style={styles.iosPickerContainer}>
+          <View style={[styles.iosPickerContent, { backgroundColor: currentColors.card }]}>
+            <View style={styles.iosPickerHeader}>
+              <TouchableOpacity onPress={() => {
+                setShowDatePicker(false);
+                setShowTimePicker(false);
+              }}>
+                <Text style={[styles.iosPickerButton, { color: currentColors.textSecondary }]}>
+                  Отмена
+                </Text>
+              </TouchableOpacity>
+              <Text style={[styles.iosPickerTitle, { color: currentColors.text }]}>
+                {showDatePicker ? 'Выберите дату' : 'Выберите время'}
+              </Text>
+              <TouchableOpacity onPress={() => {
+                if (showDatePicker) {
+                  setShowDatePicker(false);
+                  setShowTimePicker(true);
+                } else {
+                  setShowTimePicker(false);
+                  saveQuitDate();
+                }
+              }}>
+                <Text style={[styles.iosPickerButton, { color: currentColors.primary }]}>
+                  {showDatePicker ? 'Далее' : 'Готово'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+            <DateTimePicker
+              value={quitDate}
+              mode={showDatePicker ? 'date' : 'time'}
+              display="spinner"
+              onChange={showDatePicker ? handleDateChange : handleTimeChange}
+              minimumDate={showDatePicker ? new Date() : undefined}
+            />
+          </View>
+        </View>
+      )}
+
+      {/* Android Save Button */}
+      {Platform.OS === 'android' && !showDatePicker && !showTimePicker && quitDate && (
+        currentQuitDate !== quitDate.toISOString() && (
+          <View style={styles.androidSaveContainer}>
+            <TouchableOpacity
+              style={[styles.androidSaveButton, { backgroundColor: currentColors.primary }]}
+              onPress={saveQuitDate}
+            >
+              <Text style={[styles.androidSaveButtonText, { color: currentColors.card }]}>
+                Сохранить дату отказа
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )
+      )}
     </SafeAreaView>
   );
 }
@@ -332,5 +550,92 @@ const styles = StyleSheet.create({
   },
   supportText: {
     marginTop: 8,
+  },
+  quitDateInfo: {
+    marginTop: 16,
+  },
+  quitDateText: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginTop: 8,
+    marginBottom: 16,
+  },
+  quitDateButtons: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  quitDateButton: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  quitDateButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  noQuitDate: {
+    marginTop: 16,
+    alignItems: 'center',
+  },
+  setQuitDateButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    marginTop: 16,
+    gap: 8,
+  },
+  setQuitDateButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  iosPickerContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  iosPickerContent: {
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    paddingBottom: 34,
+  },
+  iosPickerHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.highlight,
+  },
+  iosPickerTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  iosPickerButton: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  androidSaveContainer: {
+    position: 'absolute',
+    bottom: 34,
+    left: 16,
+    right: 16,
+  },
+  androidSaveButton: {
+    paddingVertical: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  androidSaveButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
   },
 });

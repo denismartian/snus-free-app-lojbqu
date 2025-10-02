@@ -3,6 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export interface ProgressData {
   startDate: string;
+  quitDate?: string; // Target quit date and time
   notes: Note[];
 }
 
@@ -79,4 +80,57 @@ export const addNote = async (noteText: string, mood?: 'good' | 'neutral' | 'dif
   } catch (error) {
     console.log('Error adding note:', error);
   }
+};
+
+export const setQuitDate = async (quitDate: string): Promise<void> => {
+  try {
+    const existingData = await getProgressData();
+    if (!existingData) {
+      // Create new data with quit date
+      const newData: ProgressData = {
+        startDate: new Date().toISOString(),
+        quitDate,
+        notes: [],
+      };
+      await saveProgressData(newData);
+    } else {
+      const updatedData: ProgressData = {
+        ...existingData,
+        quitDate,
+      };
+      await saveProgressData(updatedData);
+    }
+    console.log('Quit date set successfully');
+  } catch (error) {
+    console.log('Error setting quit date:', error);
+  }
+};
+
+export const calculateTimeUntilQuit = (quitDate: string) => {
+  const quit = new Date(quitDate);
+  const now = new Date();
+  const diffTime = quit.getTime() - now.getTime();
+  
+  if (diffTime <= 0) {
+    return {
+      days: 0,
+      hours: 0,
+      minutes: 0,
+      seconds: 0,
+      isExpired: true,
+    };
+  }
+
+  const days = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+  const hours = Math.floor((diffTime % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+  const minutes = Math.floor((diffTime % (1000 * 60 * 60)) / (1000 * 60));
+  const seconds = Math.floor((diffTime % (1000 * 60)) / 1000);
+
+  return {
+    days,
+    hours,
+    minutes,
+    seconds,
+    isExpired: false,
+  };
 };
