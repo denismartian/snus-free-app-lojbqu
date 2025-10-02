@@ -259,7 +259,9 @@ export default function SettingsScreen() {
       disabled={!onPress}
     >
       <View style={styles.settingLeft}>
-        <IconSymbol name={iconName} size={24} color={iconColor} />
+        <View style={[styles.iconContainer, { backgroundColor: currentColors.highlight }]}>
+          <IconSymbol name={iconName} size={20} color={iconColor} />
+        </View>
         <View style={styles.settingText}>
           <Text style={[commonStyles.text, { color: currentColors.text }]}>
             {title}
@@ -318,20 +320,20 @@ export default function SettingsScreen() {
               </Text>
               <View style={styles.quitDateButtons}>
                 <TouchableOpacity
-                  style={[styles.quitDateButton, { backgroundColor: currentColors.primary }]}
+                  style={[commonStyles.buttonSmall, { backgroundColor: currentColors.primary, flex: 1 }]}
                   onPress={handleChangeQuitDate}
                   disabled={isLoading}
                 >
-                  <Text style={[styles.quitDateButtonText, { color: currentColors.card }]}>
+                  <Text style={[commonStyles.buttonSmallText, { color: currentColors.card }]}>
                     Изменить
                   </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={[styles.quitDateButton, { backgroundColor: currentColors.error }]}
+                  style={[commonStyles.buttonSmall, { backgroundColor: currentColors.error, flex: 1 }]}
                   onPress={clearQuitDate}
                   disabled={isLoading}
                 >
-                  <Text style={[styles.quitDateButtonText, { color: currentColors.card }]}>
+                  <Text style={[commonStyles.buttonSmallText, { color: currentColors.card }]}>
                     Удалить
                   </Text>
                 </TouchableOpacity>
@@ -339,18 +341,20 @@ export default function SettingsScreen() {
             </View>
           ) : (
             <View style={styles.noQuitDate}>
-              <Text style={[commonStyles.textSecondary, { color: currentColors.textSecondary }]}>
+              <Text style={[commonStyles.textSecondary, { color: currentColors.textSecondary, textAlign: 'center' }]}>
                 Установите дату и время, когда планируете отказаться от снюса
               </Text>
               <TouchableOpacity
-                style={[styles.setQuitDateButton, { backgroundColor: currentColors.primary }]}
+                style={[commonStyles.button, { backgroundColor: currentColors.primary, marginTop: 16 }]}
                 onPress={handleSetQuitDate}
                 disabled={isLoading}
               >
-                <IconSymbol name="calendar" size={20} color={currentColors.card} />
-                <Text style={[styles.setQuitDateButtonText, { color: currentColors.card }]}>
-                  Установить дату отказа
-                </Text>
+                <View style={styles.buttonContent}>
+                  <IconSymbol name="calendar" size={20} color={currentColors.card} />
+                  <Text style={[commonStyles.buttonText, { color: currentColors.card }]}>
+                    Установить дату отказа
+                  </Text>
+                </View>
               </TouchableOpacity>
             </View>
           )}
@@ -544,11 +548,11 @@ export default function SettingsScreen() {
       {Platform.OS === 'android' && hasUnsavedChanges && !showDatePicker && !showTimePicker && (
         <View style={styles.androidSaveContainer}>
           <TouchableOpacity
-            style={[styles.androidSaveButton, { backgroundColor: currentColors.primary }]}
+            style={[commonStyles.button, { backgroundColor: currentColors.primary }]}
             onPress={saveQuitDate}
             disabled={isLoading}
           >
-            <Text style={[styles.androidSaveButtonText, { color: currentColors.card }]}>
+            <Text style={[commonStyles.buttonText, { color: currentColors.card }]}>
               Сохранить дату отказа
             </Text>
           </TouchableOpacity>
@@ -564,6 +568,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingVertical: 16,
+    paddingBottom: 100, // Extra padding for floating tab bar
   },
   appHeader: {
     flexDirection: 'row',
@@ -576,6 +581,8 @@ const styles = StyleSheet.create({
     borderRadius: 30,
     justifyContent: 'center',
     alignItems: 'center',
+    boxShadow: '0px 4px 12px rgba(76, 175, 80, 0.3)',
+    elevation: 4,
   },
   settingItem: {
     flexDirection: 'row',
@@ -589,6 +596,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flex: 1,
     gap: 16,
+  },
+  iconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   settingText: {
     flex: 1,
@@ -615,33 +629,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 12,
   },
-  quitDateButton: {
-    flex: 1,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  quitDateButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
   noQuitDate: {
     marginTop: 16,
     alignItems: 'center',
   },
-  setQuitDateButton: {
+  buttonContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 8,
-    marginTop: 16,
     gap: 8,
-  },
-  setQuitDateButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
   },
   iosPickerContainer: {
     position: 'absolute',
@@ -679,14 +674,5 @@ const styles = StyleSheet.create({
     bottom: 34,
     left: 16,
     right: 16,
-  },
-  androidSaveButton: {
-    paddingVertical: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  androidSaveButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
   },
 });

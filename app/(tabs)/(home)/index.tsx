@@ -186,13 +186,13 @@ export default function HomeScreen() {
         {progressData?.quitDate && (
           <View style={[commonStyles.card, { backgroundColor: currentColors.card }]}>
             <Text style={[commonStyles.title, { color: currentColors.text }]}>
-              {countdown.isExpired ? 'Время отказа наступило!' : 'До отказа от снюса'}
+              {countdown.isExpired ? 'Время отказа наступило!' : 'Обратный отсчет до отказа'}
             </Text>
             
             {!countdown.isExpired ? (
               <View style={styles.countdownContainer}>
                 <View style={styles.countdownGrid}>
-                  <View style={styles.countdownItem}>
+                  <View style={[styles.countdownItem, { backgroundColor: currentColors.highlight }]}>
                     <Text style={[styles.countdownNumber, { color: currentColors.primary }]}>
                       {countdown.days}
                     </Text>
@@ -200,7 +200,7 @@ export default function HomeScreen() {
                       дней
                     </Text>
                   </View>
-                  <View style={styles.countdownItem}>
+                  <View style={[styles.countdownItem, { backgroundColor: currentColors.highlight }]}>
                     <Text style={[styles.countdownNumber, { color: currentColors.primary }]}>
                       {countdown.hours}
                     </Text>
@@ -208,7 +208,7 @@ export default function HomeScreen() {
                       часов
                     </Text>
                   </View>
-                  <View style={styles.countdownItem}>
+                  <View style={[styles.countdownItem, { backgroundColor: currentColors.highlight }]}>
                     <Text style={[styles.countdownNumber, { color: currentColors.primary }]}>
                       {countdown.minutes}
                     </Text>
@@ -216,7 +216,7 @@ export default function HomeScreen() {
                       минут
                     </Text>
                   </View>
-                  <View style={styles.countdownItem}>
+                  <View style={[styles.countdownItem, { backgroundColor: currentColors.highlight }]}>
                     <Text style={[styles.countdownNumber, { color: currentColors.primary }]}>
                       {countdown.seconds}
                     </Text>
@@ -225,8 +225,8 @@ export default function HomeScreen() {
                     </Text>
                   </View>
                 </View>
-                <Text style={[commonStyles.textSecondary, { color: currentColors.textSecondary, textAlign: 'center', marginTop: 16 }]}>
-                  Запланированное время отказа: {new Date(progressData.quitDate).toLocaleString('ru-RU')}
+                <Text style={[commonStyles.textSecondary, { color: currentColors.textSecondary, textAlign: 'center', marginTop: 20 }]}>
+                  📅 Запланированное время: {new Date(progressData.quitDate).toLocaleString('ru-RU')}
                 </Text>
               </View>
             ) : (
@@ -249,7 +249,7 @@ export default function HomeScreen() {
           </Text>
           
           {/* Mood Selection */}
-          <Text style={[commonStyles.textSecondary, { color: currentColors.textSecondary, marginBottom: 8 }]}>
+          <Text style={[commonStyles.textSecondary, { color: currentColors.textSecondary, marginBottom: 12 }]}>
             Как вы себя чувствуете?
           </Text>
           <View style={styles.moodContainer}>
@@ -258,16 +258,23 @@ export default function HomeScreen() {
                 key={mood}
                 style={[
                   styles.moodButton,
-                  selectedMood === mood && { backgroundColor: currentColors.highlight },
+                  { backgroundColor: currentColors.background },
+                  selectedMood === mood && { 
+                    backgroundColor: currentColors.primary,
+                    transform: [{ scale: 1.05 }],
+                  },
                 ]}
                 onPress={() => setSelectedMood(mood)}
               >
                 <IconSymbol
                   name={getMoodIcon(mood)}
                   size={24}
-                  color={getMoodColor(mood)}
+                  color={selectedMood === mood ? currentColors.card : getMoodColor(mood)}
                 />
-                <Text style={[styles.moodText, { color: currentColors.textSecondary }]}>
+                <Text style={[
+                  styles.moodText, 
+                  { color: selectedMood === mood ? currentColors.card : currentColors.textSecondary }
+                ]}>
                   {mood === 'good' ? 'Хорошо' : mood === 'neutral' ? 'Нормально' : 'Трудно'}
                 </Text>
               </TouchableOpacity>
@@ -289,7 +296,7 @@ export default function HomeScreen() {
           />
           
           <TouchableOpacity
-            style={[commonStyles.button, { backgroundColor: currentColors.primary }]}
+            style={[commonStyles.button, { backgroundColor: currentColors.primary, marginTop: 16 }]}
             onPress={handleAddNote}
           >
             <Text style={[commonStyles.buttonText, { color: currentColors.card }]}>
@@ -305,7 +312,7 @@ export default function HomeScreen() {
               Последние заметки
             </Text>
             {progressData.notes.slice(-3).reverse().map((note) => (
-              <View key={note.id} style={styles.noteItem}>
+              <View key={note.id} style={[styles.noteItem, { borderBottomColor: currentColors.highlight }]}>
                 <View style={styles.noteHeader}>
                   {note.mood && (
                     <IconSymbol
@@ -336,7 +343,7 @@ export default function HomeScreen() {
               Сбросить прогресс
             </Text>
           </TouchableOpacity>
-          <Text style={[commonStyles.textSecondary, { color: currentColors.textSecondary, textAlign: 'center', marginTop: 8 }]}>
+          <Text style={[commonStyles.textSecondary, { color: currentColors.textSecondary, textAlign: 'center', marginTop: 12 }]}>
             Используйте только в случае необходимости
           </Text>
         </View>
@@ -351,14 +358,15 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingVertical: 16,
+    paddingBottom: 100, // Extra padding for floating tab bar
   },
   progressCircle: {
     alignItems: 'center',
     justifyContent: 'center',
-    marginVertical: 20,
+    marginVertical: 24,
   },
   progressNumber: {
-    fontSize: 64,
+    fontSize: 72,
     fontWeight: 'bold',
   },
   milestoneContainer: {
@@ -368,56 +376,65 @@ const styles = StyleSheet.create({
   moodContainer: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    marginBottom: 16,
+    marginBottom: 20,
   },
   moodButton: {
     alignItems: 'center',
-    padding: 12,
-    borderRadius: 8,
-    minWidth: 80,
+    padding: 16,
+    borderRadius: 12,
+    minWidth: 90,
+    boxShadow: '0px 2px 6px rgba(0, 0, 0, 0.1)',
+    elevation: 2,
   },
   moodText: {
     fontSize: 12,
-    marginTop: 4,
+    marginTop: 6,
+    fontWeight: '500',
   },
   noteItem: {
     borderBottomWidth: 1,
-    borderBottomColor: colors.highlight,
-    paddingVertical: 12,
+    paddingVertical: 16,
   },
   noteHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 4,
+    marginBottom: 6,
     gap: 8,
   },
   countdownContainer: {
-    marginVertical: 20,
+    marginVertical: 24,
   },
   countdownGrid: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
+    justifyContent: 'space-between',
     alignItems: 'center',
+    gap: 8,
   },
   countdownItem: {
     alignItems: 'center',
-    minWidth: 60,
+    flex: 1,
+    paddingVertical: 16,
+    paddingHorizontal: 8,
+    borderRadius: 12,
+    boxShadow: '0px 2px 6px rgba(0, 0, 0, 0.1)',
+    elevation: 2,
   },
   countdownNumber: {
-    fontSize: 32,
+    fontSize: 28,
     fontWeight: 'bold',
   },
   countdownLabel: {
     fontSize: 12,
     marginTop: 4,
+    fontWeight: '500',
   },
   expiredContainer: {
     alignItems: 'center',
-    marginVertical: 20,
+    marginVertical: 24,
   },
   expiredText: {
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: 'bold',
-    marginBottom: 8,
+    marginBottom: 12,
   },
 });
