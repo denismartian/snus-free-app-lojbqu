@@ -28,6 +28,7 @@ export default function SettingsScreen() {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [currentQuitDate, setCurrentQuitDate] = useState<string | null>(null);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
   // Determine current theme
   const isDark = userTheme === 'dark' || (userTheme === 'system' && systemColorScheme === 'dark');
@@ -40,11 +41,17 @@ export default function SettingsScreen() {
 
   const loadQuitDate = async () => {
     try {
+      console.log('Loading quit date...');
       const data = await getProgressData();
       if (data?.quitDate) {
+        console.log('Found quit date:', data.quitDate);
         setCurrentQuitDate(data.quitDate);
         setQuitDateState(new Date(data.quitDate));
+      } else {
+        console.log('No quit date found');
+        setCurrentQuitDate(null);
       }
+      setHasUnsavedChanges(false);
     } catch (error) {
       console.log('Error loading quit date:', error);
     }
@@ -85,6 +92,8 @@ export default function SettingsScreen() {
               await resetProgressData();
               await AsyncStorage.removeItem(THEME_KEY);
               setUserTheme('system');
+              setCurrentQuitDate(null);
+              setHasUnsavedChanges(false);
               Alert.alert('Успех', 'Все данные удалены');
             } catch (error) {
               console.log('Error deleting all data:', error);
@@ -112,6 +121,7 @@ export default function SettingsScreen() {
             try {
               await resetProgressData();
               Alert.alert('Успех', 'Прогресс сброшен');
+              await loadQuitDate(); // Reload quit date after reset
             } catch (error) {
               console.log('Error resetting progress:', error);
               Alert.alert('Ошибка', 'Не удалось сбросить прогресс');
@@ -125,6 +135,7 @@ export default function SettingsScreen() {
   };
 
   const handleDateChange = (event: any, selectedDate?: Date) => {
+    console.log('Date changed:', selectedDate);
     setShowDatePicker(Platform.OS === 'ios');
     if (selectedDate) {
       const newDate = new Date(quitDate);
@@ -132,6 +143,7 @@ export default function SettingsScreen() {
       newDate.setMonth(selectedDate.getMonth());
       newDate.setDate(selectedDate.getDate());
       setQuitDateState(newDate);
+      setHasUnsavedChanges(true);
       
       if (Platform.OS === 'android') {
         setShowTimePicker(true);
@@ -140,23 +152,37 @@ export default function SettingsScreen() {
   };
 
   const handleTimeChange = (event: any, selectedTime?: Date) => {
+    console.log('Time changed:', selectedTime);
     setShowTimePicker(Platform.OS === 'ios');
     if (selectedTime) {
       const newDate = new Date(quitDate);
       newDate.setHours(selectedTime.getHours());
       newDate.setMinutes(selectedTime.getMinutes());
       setQuitDateState(newDate);
+      setHasUnsavedChanges(true);
+      
+      // For Android, automatically save after time selection
+      if (Platform.OS === 'android') {
+        setTimeout(() => {
+          saveQuitDate();
+        }, 100);
+      }
     }
   };
 
   const saveQuitDate = async () => {
     try {
+      console.log('Saving quit date:', quitDate.toISOString());
+      setIsLoading(true);
       await setQuitDate(quitDate.toISOString());
       setCurrentQuitDate(quitDate.toISOString());
+      setHasUnsavedChanges(false);
       Alert.alert('Успех', 'Дата и время отказа сохранены!');
     } catch (error) {
       console.log('Error saving quit date:', error);
       Alert.alert('Ошибка', 'Не удалось сохранить дату отказа');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -171,6 +197,7 @@ export default function SettingsScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
+              setIsLoading(true);
               const data = await getProgressData();
               if (data) {
                 const updatedData = { ...data };
@@ -183,15 +210,32 @@ export default function SettingsScreen() {
                 }
               }
               setCurrentQuitDate(null);
+              setHasUnsavedChanges(false);
               Alert.alert('Успех', 'Дата отказа удалена');
             } catch (error) {
               console.log('Error clearing quit date:', error);
               Alert.alert('Ошибка', 'Не удалось удалить дату отказа');
+            } finally {
+              setIsLoading(false);
             }
           },
         },
       ]
     );
+  };
+
+  const handleSetQuitDate = () => {
+    console.log('Set quit date button pressed');
+    setQuitDateState(new Date());
+    setShowDatePicker(true);
+  };
+
+  const handleChangeQuitDate = () => {
+    console.log('Change quit date button pressed');
+    if (currentQuitDate) {
+      setQuitDateState(new Date(currentQuitDate));
+    }
+    setShowDatePicker(true);
   };
 
   const SettingItem = ({ 
@@ -275,7 +319,8 @@ export default function SettingsScreen() {
               <View style={styles.quitDateButtons}>
                 <TouchableOpacity
                   style={[styles.quitDateButton, { backgroundColor: currentColors.primary }]}
-                  onPress={() => setShowDatePicker(true)}
+                  onPress={handleChangeQuitDate}
+                  disabled={isLoading}
                 >
                   <Text style={[styles.quitDateButtonText, { color: currentColors.card }]}>
                     Изменить
@@ -284,6 +329,7 @@ export default function SettingsScreen() {
                 <TouchableOpacity
                   style={[styles.quitDateButton, { backgroundColor: currentColors.error }]}
                   onPress={clearQuitDate}
+                  disabled={isLoading}
                 >
                   <Text style={[styles.quitDateButtonText, { color: currentColors.card }]}>
                     Удалить
@@ -298,7 +344,8 @@ export default function SettingsScreen() {
               </Text>
               <TouchableOpacity
                 style={[styles.setQuitDateButton, { backgroundColor: currentColors.primary }]}
-                onPress={() => setShowDatePicker(true)}
+                onPress={handleSetQuitDate}
+                disabled={isLoading}
               >
                 <IconSymbol name="calendar" size={20} color={currentColors.card} />
                 <Text style={[styles.setQuitDateButtonText, { color: currentColors.card }]}>
@@ -455,6 +502,11 @@ export default function SettingsScreen() {
               <TouchableOpacity onPress={() => {
                 setShowDatePicker(false);
                 setShowTimePicker(false);
+                setHasUnsavedChanges(false);
+                // Reset to original date if canceling
+                if (currentQuitDate) {
+                  setQuitDateState(new Date(currentQuitDate));
+                }
               }}>
                 <Text style={[styles.iosPickerButton, { color: currentColors.textSecondary }]}>
                   Отмена
@@ -489,19 +541,18 @@ export default function SettingsScreen() {
       )}
 
       {/* Android Save Button */}
-      {Platform.OS === 'android' && !showDatePicker && !showTimePicker && quitDate && (
-        currentQuitDate !== quitDate.toISOString() && (
-          <View style={styles.androidSaveContainer}>
-            <TouchableOpacity
-              style={[styles.androidSaveButton, { backgroundColor: currentColors.primary }]}
-              onPress={saveQuitDate}
-            >
-              <Text style={[styles.androidSaveButtonText, { color: currentColors.card }]}>
-                Сохранить дату отказа
-              </Text>
-            </TouchableOpacity>
-          </View>
-        )
+      {Platform.OS === 'android' && hasUnsavedChanges && !showDatePicker && !showTimePicker && (
+        <View style={styles.androidSaveContainer}>
+          <TouchableOpacity
+            style={[styles.androidSaveButton, { backgroundColor: currentColors.primary }]}
+            onPress={saveQuitDate}
+            disabled={isLoading}
+          >
+            <Text style={[styles.androidSaveButtonText, { color: currentColors.card }]}>
+              Сохранить дату отказа
+            </Text>
+          </TouchableOpacity>
+        </View>
       )}
     </SafeAreaView>
   );
